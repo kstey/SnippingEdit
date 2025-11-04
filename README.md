@@ -5,6 +5,12 @@ A screenshot and annotation tool for macOS with instant selection memory and dra
 ![macOS](https://img.shields.io/badge/macOS-14.0+-blue.svg)
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
 
+## App Icon
+
+![SnippingEdit Icon in Dock](images/SnippingEditIcon.png)
+
+*The SnippingEdit icon as it appears in your macOS dock*
+
 > **Note:** This is an AI-assisted project. The creator has no prior experience in Swift.
 
 ## Requirements
