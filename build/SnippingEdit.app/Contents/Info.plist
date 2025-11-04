@@ -32,9 +32,6 @@
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
-	<!-- Screen Recording Permission -->
-	<key>NSScreenCaptureUsageDescription</key>
-	<string>SnippingEdit needs permission to capture your screen to take screenshots. This allows you to select and annotate areas of your screen.</string>
 </dict>
 </plist>
 

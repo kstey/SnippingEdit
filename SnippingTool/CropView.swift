@@ -94,14 +94,13 @@ class CropView: NSView {
     
     override func mouseUp(with event: NSEvent) {
         guard isDragging else { return }
-        
+
         isDragging = false
-        
+
         // Ensure minimum selection size
         if selectionRect.width > 10 && selectionRect.height > 10 {
-            // Convert to screen coordinates for the delegate
-            let screenRect = self.convert(selectionRect, to: nil)
-            delegate?.cropDidComplete(croppedRect: screenRect)
+            // Pass the selection rect directly (already in view coordinates)
+            delegate?.cropDidComplete(croppedRect: selectionRect)
         } else {
             // Reset if selection is too small
             selectionRect = NSRect.zero
@@ -115,8 +114,8 @@ class CropView: NSView {
             self.window?.miniaturize(nil)
         } else if event.keyCode == 36 { // Enter key
             if !selectionRect.isEmpty {
-                let screenRect = self.convert(selectionRect, to: nil)
-                delegate?.cropDidComplete(croppedRect: screenRect)
+                // Pass the selection rect directly (already in view coordinates)
+                delegate?.cropDidComplete(croppedRect: selectionRect)
             }
         }
     }
@@ -131,41 +130,57 @@ class CropView: NSView {
         let scaleX = imageSize.width / viewSize.width
         let scaleY = imageSize.height / viewSize.height
         
-        // Flip Y coordinate (NSView uses bottom-left origin, NSImage uses top-left)
-        let flippedY = viewSize.height - selectionRect.maxY
+        // NSView coordinate system: origin at bottom-left, y increases upward
+        // Screen/CGImage coordinate system: origin at top-left, y increases downward
+        // When we display the image with draw(in:), NSImage flips it for us
+        // But the underlying CGImage data is still in screen coordinates
         
-        let cropRect = NSRect(
-            x: selectionRect.minX * scaleX,
-            y: flippedY * scaleY,
-            width: selectionRect.width * scaleX,
-            height: selectionRect.height * scaleY
-        )
+        // Convert from NSView coordinates (bottom-left) to CGImage coordinates (top-left)
+        // selectionRect.minY = distance from bottom of view
+        // We want distance from top of image = viewHeight - (selectionRect.minY + selectionRect.height)
+        let imageY = (viewSize.height - selectionRect.minY - selectionRect.height) * scaleY
+        let imageX = selectionRect.minX * scaleX
+        let imageWidth = selectionRect.width * scaleX
+        let imageHeight = selectionRect.height * scaleY
         
-        // Create cropped image
-        let croppedImage = NSImage(size: NSSize(width: cropRect.width, height: cropRect.height))
-        croppedImage.lockFocus()
+        print("=== Crop Debug ===")
+        print("Selection rect: \(selectionRect)")
+        print("View size: \(viewSize)")
+        print("Image size: \(imageSize)")
+        print("Calculated crop: x=\(imageX), y=\(imageY), w=\(imageWidth), h=\(imageHeight)")
         
-        let sourceRect = NSRect(
-            x: cropRect.minX,
-            y: cropRect.minY,
-            width: cropRect.width,
-            height: cropRect.height
-        )
+        // Get CGImage representation
+        guard let tiffData = originalImage.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let cgImage = bitmap.cgImage else {
+            print("Failed to get CGImage")
+            return nil
+        }
         
-        let destRect = NSRect(
-            x: 0,
-            y: 0,
-            width: cropRect.width,
-            height: cropRect.height
-        )
+        // Crop using CGImage (unambiguous coordinate system)
+        let cropRect = CGRect(x: imageX, y: imageY, width: imageWidth, height: imageHeight)
         
-        originalImage.draw(in: destRect, from: sourceRect, operation: .copy, fraction: 1.0)
-        croppedImage.unlockFocus()
+        guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
+            print("Failed to crop CGImage")
+            return nil
+        }
+        
+        // Convert back to NSImage
+        let croppedImage = NSImage(cgImage: croppedCGImage, size: NSSize(width: imageWidth, height: imageHeight))
         
         return croppedImage
     }
     
     override var acceptsFirstResponder: Bool {
         return true
+    }
+    
+    // MARK: - Reset State
+    func resetState() {
+        startPoint = NSPoint.zero
+        currentPoint = NSPoint.zero
+        isDragging = false
+        selectionRect = NSRect.zero
+        self.needsDisplay = true
     }
 }

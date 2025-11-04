@@ -152,8 +152,9 @@ resize handles, and smart capture features.
 QUICK START
 -----------
 1. Double-click SnippingEdit.app to launch
-2. Grant Screen Recording permission when prompted
-3. Click the camera icon in menu bar to take screenshots
+2. Minimize the app to dock
+3. Copy any image to clipboard (e.g., Cmd+Shift+4 + Control)
+4. Click dock icon to open and edit the image
 
 IF APP WON'T OPEN ("damaged" error)
 ------------------------------------
@@ -175,18 +176,16 @@ Alternative Fix:
 
 FEATURES
 --------
-• Instant selection with memory
-• 8 resize handles (corners + edges)
-• Real-time dimension display
-• Capture and Cancel buttons
-• 8-color annotation palette
+• Automatic clipboard monitoring
+• Image editing and annotation
+• 8-color drawing palette
 • One-click clipboard copy
-• Keyboard shortcuts
+• Keyboard shortcuts (Delete to undo, Cmd+R to clear)
 
 REQUIREMENTS
 ------------
 • macOS 14.0 or later
-• Screen Recording permission
+• No special permissions required (clipboard access only)
 
 SUPPORT
 -------
@@ -232,11 +231,5 @@ echo "   • App is NOT code-signed (requires Apple Developer account)"
 echo "   • Recipients may see \"damaged\" error when downloaded"
 echo "   • FIX_IF_DAMAGED.sh script included in distribution"
 echo "   • See GATEKEEPER_FIX.md for detailed solutions"
-echo ""
-echo -e "${GREEN}🔐 Screen Recording Permission:${NC}"
-echo "   1. Run the app"
-echo "   2. Try to take a screenshot"
-echo "   3. Grant permission when prompted"
-echo "   4. Or: System Settings > Privacy & Security > Screen Recording"
 echo ""
 

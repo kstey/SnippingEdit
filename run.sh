@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Build and run the SnippingEdit
+# Build and run SnippingEdit
 
 echo "Building SnippingEdit..."
 swift build
@@ -9,15 +9,14 @@ if [ $? -eq 0 ]; then
     echo "Build successful! Starting SnippingEdit..."
     echo ""
     echo "Usage:"
-    echo "- The app will appear in your menu bar with a camera icon"
-    echo "- Click the camera icon to take a screenshot"
-    echo "- Drag to select the area you want to capture"
-    echo "- Use the color buttons to draw on the screenshot"
-    echo "- Click 'Clipboard' to copy the annotated image"
-    echo "- Press Escape to cancel at any time"
+    echo "- The app monitors your clipboard for images"
+    echo "- Copy any image to clipboard (Cmd+C or screenshot)"
+    echo "- Click the dock icon to open the editor"
+    echo "- Use the color buttons to draw annotations"
+    echo "- Click 'Clipboard' to copy the edited image"
     echo ""
     echo "Starting application..."
-    
+
     # Run the built executable
     ./.build/debug/SnippingEdit
 else

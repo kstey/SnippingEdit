@@ -1,145 +1,164 @@
 import Cocoa
-import AVFoundation
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    
-    var statusItem: NSStatusItem?
-    var screenshotWindow: ScreenshotWindow?
-    
+
+    var editWindow: EditWindow?
+
+    // Clipboard monitoring
+    private var clipboardTimer: Timer?
+    private var lastChangeCount: Int = 0
+    private var ignoreNextClipboardChange: Bool = false  // Flag to ignore our own clipboard writes
+    private var latestClipboardImage: NSImage?  // Store latest clipboard image
+
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         print("App starting...")
 
-        // Create status bar item
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // Start as regular dock app
+        NSApp.setActivationPolicy(.regular)
 
-        if let button = statusItem?.button {
-            // Use a more visible text-based icon
-            button.title = "📷"
-            button.font = NSFont.systemFont(ofSize: 16)
-            print("Using emoji camera icon in menu bar")
+        // Get initial clipboard state
+        lastChangeCount = NSPasteboard.general.changeCount
 
-            button.action = #selector(takeScreenshot)
-            button.target = self
+        // Start clipboard monitoring (will only be active when minimized)
+        startClipboardMonitoring()
 
-            // Add right-click menu
-            let menu = NSMenu()
-            menu.addItem(NSMenuItem(title: "Take Screenshot", action: #selector(takeScreenshot), keyEquivalent: ""))
-            menu.addItem(NSMenuItem.separator())
-            menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-            statusItem?.menu = menu
+        print("App setup complete - clipboard monitoring will activate when minimized")
+    }
+    
+    // MARK: - Clipboard Monitoring
 
-            print("Status bar item created successfully")
+    private func startClipboardMonitoring() {
+        // Check clipboard every 0.5 seconds
+        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.checkClipboard()
+        }
+
+        print("Clipboard monitoring timer started")
+    }
+
+    private func checkClipboard() {
+        let pasteboard = NSPasteboard.general
+        let currentChangeCount = pasteboard.changeCount
+
+        // Check if clipboard has changed
+        guard currentChangeCount != lastChangeCount else {
+            // Uncomment for verbose debugging:
+            // print("⏸️ No clipboard change (count: \(currentChangeCount))")
+            return
+        }
+
+        print("📋 Clipboard changed: \(lastChangeCount) -> \(currentChangeCount)")
+        print("📋 ignoreNextClipboardChange: \(ignoreNextClipboardChange)")
+
+        // If we should ignore this change (our own write), skip it
+        if ignoreNextClipboardChange {
+            print("⏭️ Ignoring clipboard change (our own write)")
+            ignoreNextClipboardChange = false
+            lastChangeCount = currentChangeCount
+            return
+        }
+
+        lastChangeCount = currentChangeCount
+
+        // Check if clipboard contains an image
+        if let image = NSImage(pasteboard: pasteboard) {
+            print("✓ New image detected in clipboard: \(image.size)")
+            
+            // Check if window is already visible and update it immediately
+            if let window = editWindow, window.isVisible && !window.isMiniaturized {
+                print("🔄 Auto-updating visible window with new image")
+                window.updateImage(image)
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            } else {
+                // Store the image for later when user clicks dock icon
+                latestClipboardImage = image
+                print("✓ Image stored - user can restore window from dock to edit")
+            }
         } else {
-            print("Failed to create status bar button")
-        }
-
-        // Keep dock icon visible initially so user can see the app is running
-        NSApp.setActivationPolicy(.regular)
-
-        // Force the status item to be visible and configure it properly
-        statusItem?.isVisible = true
-        statusItem?.behavior = [.removalAllowed, .terminationOnRemoval]
-
-        // Double-check the button is configured
-        if let button = statusItem?.button {
-            button.appearsDisabled = false
-            button.isEnabled = true
-            print("Menu bar button configured: title='\(button.title)', enabled=\(button.isEnabled)")
-        }
-
-        print("App setup complete - check your menu bar for the camera icon")
-        print("You should see both:")
-        print("1. SnippingEdit in the Dock (which you can see)")
-        print("2. A camera icon in the menu bar (top-right of screen)")
-
-        // Check permissions and show appropriate message after a longer delay
-        // This ensures the menu bar icon appears first
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.checkScreenRecordingPermission()
+            print("✗ Clipboard changed but no image found")
+            // Debug: show what types are available
+            print("📋 Available types: \(pasteboard.types ?? [])")
         }
     }
-    
-    @objc func takeScreenshot() {
-        // Check permissions before taking screenshot
-        if !hasScreenRecordingPermission() {
-            showPermissionAlert()
-            return
-        }
 
-        // Show dock icon when taking screenshot
-        NSApp.setActivationPolicy(.regular)
+    // Called by EditWindow when it writes to clipboard
+    func willWriteToClipboard() {
+        print("🚫 App will write to clipboard - ignoring next change")
+        ignoreNextClipboardChange = true
+    }
+
+    private func showEditWindow(with image: NSImage) {
+        print("Showing edit window with image: \(image.size)")
+
+        // Close existing window if any
+        editWindow?.close()
+
+        // Create and show edit window directly (no crop view)
+        editWindow = EditWindow(image: image)
+        editWindow?.editDelegate = self
+        editWindow?.makeKeyAndOrderFront(nil)
+
+        // Activate app
         NSApp.activate(ignoringOtherApps: true)
-
-        // Capture screenshot of all screens
-        let displayID = CGMainDisplayID()
-        guard let image = CGDisplayCreateImage(displayID) else {
-            print("Failed to capture screenshot - this usually means missing permissions")
-            showPermissionAlert()
-            return
-        }
-
-        // Convert to NSImage
-        let nsImage = NSImage(cgImage: image, size: NSSize(width: CGFloat(image.width), height: CGFloat(image.height)))
-
-        // Create and show screenshot window
-        screenshotWindow = ScreenshotWindow(screenshot: nsImage)
-        screenshotWindow?.makeKeyAndOrderFront(nil)
     }
-    
+
     func applicationWillTerminate(_ aNotification: Notification) {
-        // Clean up
+        // Stop clipboard monitoring
+        clipboardTimer?.invalidate()
+        clipboardTimer = nil
     }
-    
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // Hide dock icon when no windows are open
-        NSApp.setActivationPolicy(.accessory)
+        // Don't quit when window closes
         return false
     }
 
-    // MARK: - Permission Checking
-
-    func hasScreenRecordingPermission() -> Bool {
-        // Try to create a small screenshot to test permissions
-        let displayID = CGMainDisplayID()
-        guard let image = CGDisplayCreateImage(displayID) else {
-            return false
-        }
-
-        // If we can create an image, we have permission
-        return image.width > 0 && image.height > 0
-    }
-
-    func checkScreenRecordingPermission() {
-        if hasScreenRecordingPermission() {
-            showReadyAlert()
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // When user clicks dock icon, show window with latest clipboard image
+        if let image = latestClipboardImage {
+            // We have a new clipboard image
+            if let window = editWindow {
+                // Update existing window with new image
+                print("📸 Updating existing window with latest clipboard image: \(image.size)")
+                window.updateImage(image)
+                window.deminiaturize(nil)
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                // Create new window with the image
+                print("📸 Opening new window with latest clipboard image: \(image.size)")
+                showEditWindow(with: image)
+            }
+            latestClipboardImage = nil
+        } else if let window = editWindow {
+            // No new image, just restore existing window
+            print("📸 Restoring existing window (no new clipboard image)")
+            window.deminiaturize(nil)
+            window.makeKeyAndOrderFront(nil)
         } else {
-            showPermissionAlert()
+            // No window exists and no new image - create a new window
+            print("📸 No window or clipboard image available")
         }
+        return true
     }
 
-    func showReadyAlert() {
-        let alert = NSAlert()
-        alert.messageText = "SnippingEdit is Ready! 🎉"
-        alert.informativeText = "✅ Screen recording permission granted\n\n📷 Click the camera icon in your menu bar to take screenshots\n🎨 Draw annotations with multiple colors\n📋 Copy to clipboard with one click"
-        alert.addButton(withTitle: "Got it!")
-        alert.runModal()
+}
+
+// MARK: - EditWindowDelegate
+extension AppDelegate: EditWindowDelegate {
+    func editWindowDidClose(_ window: EditWindow) {
+        print("Edit window closed")
     }
 
-    func showPermissionAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Screen Recording Permission Required"
-        alert.informativeText = "SnippingEdit needs permission to capture your screen.\n\n1. Click 'Open System Preferences' below\n2. Find 'SnippingEdit' in the list\n3. Check the box next to it\n4. Try taking a screenshot again"
-        alert.addButton(withTitle: "Open System Preferences")
-        alert.addButton(withTitle: "Cancel")
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            openScreenRecordingPreferences()
-        }
+    func editWindowDidShow(_ window: EditWindow) {
+        print("Edit window shown")
     }
 
-    func openScreenRecordingPreferences() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
-        NSWorkspace.shared.open(url)
+    func editWindowDidMiniaturize(_ window: EditWindow) {
+        print("Edit window miniaturized")
+    }
+
+    func editWindowDidDeminiaturize(_ window: EditWindow) {
+        print("Edit window deminiaturized")
     }
 }

@@ -142,10 +142,32 @@ class DrawingView: NSView {
         }
     }
     
+    func clearDrawing() {
+        paths.removeAll()
+        currentPath = nil
+        self.needsDisplay = true
+    }
+
+    func getFinalImage() -> NSImage? {
+        guard let backgroundImage = croppedImage else { return nil }
+
+        let finalImage = NSImage(size: backgroundImage.size)
+        finalImage.lockFocus()
+
+        // Draw background
+        backgroundImage.draw(in: NSRect(origin: .zero, size: backgroundImage.size))
+
+        // Draw annotations scaled to image size
+        drawAnnotations(in: NSRect(origin: .zero, size: backgroundImage.size))
+
+        finalImage.unlockFocus()
+        return finalImage
+    }
+
     override var acceptsFirstResponder: Bool {
         return true
     }
-    
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         return true
     }

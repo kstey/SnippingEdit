@@ -27,17 +27,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Capture screenshot of all screens
         let displayID = CGMainDisplayID()
-        guard let image = CGDisplayCreateImage(displayID) else {
+        guard let cgImage = CGDisplayCreateImage(displayID) else {
             print("Failed to capture screenshot")
             return
         }
         
-        // Convert to NSImage
-        let nsImage = NSImage(cgImage: image, size: NSSize(width: CGFloat(image.width), height: CGFloat(image.height)))
+        // Convert to NSImage with proper coordinate handling
+        let nsImage = createNSImage(from: cgImage)
         
         // Create and show screenshot window
         screenshotWindow = ScreenshotWindow(screenshot: nsImage)
         screenshotWindow?.makeKeyAndOrderFront(nil)
+    }
+    
+    private func createNSImage(from cgImage: CGImage) -> NSImage {
+        let width = cgImage.width
+        let height = cgImage.height
+        
+        // Create NSImage with proper bitmap representation
+        let nsImage = NSImage(size: NSSize(width: width, height: height))
+        nsImage.lockFocus()
+        
+        if let context = NSGraphicsContext.current?.cgContext {
+            // Draw the CGImage into the context
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        
+        nsImage.unlockFocus()
+        return nsImage
     }
     
     func applicationWillTerminate(_ aNotification: Notification) {

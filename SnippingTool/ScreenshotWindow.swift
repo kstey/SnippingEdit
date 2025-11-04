@@ -5,7 +5,7 @@ protocol CropViewDelegate: AnyObject {
     func cropDidComplete(croppedRect: NSRect)
 }
 
-class ScreenshotWindow: NSWindow {
+class ScreenshotWindow: NSWindow, NSWindowDelegate {
     
     private var screenshotImage: NSImage
     private var cropView: CropView
@@ -50,6 +50,7 @@ class ScreenshotWindow: NSWindow {
         self.isOpaque = false
         self.hasShadow = false
         self.ignoresMouseEvents = false
+        self.delegate = self
         
         // Make window cover all screens
         if let screen = NSScreen.main {
@@ -253,6 +254,74 @@ class ScreenshotWindow: NSWindow {
             self.miniaturize(nil)
         }
     }
+    
+    // MARK: - Screenshot Recapture
+    private func recaptureScreenshot() {
+        print("Recapturing screenshot for deminiaturized window")
+        
+        // Get the current screen
+        let displayID = CGMainDisplayID()
+        guard let cgImage = CGDisplayCreateImage(displayID) else {
+            print("Failed to recapture screenshot")
+            return
+        }
+        
+        // Convert to NSImage properly without flipping
+        let nsImage = createNSImage(from: cgImage)
+        
+        // Update screenshot image
+        self.screenshotImage = nsImage
+        self.cropView.screenshotImage = nsImage
+        
+        // Reset crop view state
+        self.cropView.needsDisplay = true
+        
+        print("Screenshot recaptured successfully")
+    }
+    
+    private func createNSImage(from cgImage: CGImage) -> NSImage {
+        let width = cgImage.width
+        let height = cgImage.height
+        
+        // Create NSImage with proper bitmap representation
+        let nsImage = NSImage(size: NSSize(width: width, height: height))
+        nsImage.lockFocus()
+        
+        if let context = NSGraphicsContext.current?.cgContext {
+            // Draw the CGImage into the context
+            // This ensures proper coordinate system handling
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        
+        nsImage.unlockFocus()
+        return nsImage
+    }
+    
+    // MARK: - NSWindowDelegate
+    func windowDidDeminiaturize(_ notification: Notification) {
+        print("Window deminiaturized - recapturing screenshot")
+        
+        // Recapture the current desktop
+        recaptureScreenshot()
+        
+        // Reset crop view state
+        cropView.resetState()
+        
+        // Ensure crop view is visible and ready
+        cropView.isHidden = false
+        drawingView.isHidden = true
+        toolbarView.isHidden = true
+        
+        // Make sure we're covering the screen properly
+        if let screen = NSScreen.main {
+            self.setFrame(screen.frame, display: true)
+            cropView.frame = screen.frame
+        }
+        
+        // Bring window to front
+        self.makeKeyAndOrderFront(nil)
+        self.orderFrontRegardless()
+    }
 }
 
 // MARK: - CropViewDelegate
@@ -279,5 +348,7 @@ extension ScreenshotWindow: CropViewDelegate {
         }
     }
 }
+
+
 
 

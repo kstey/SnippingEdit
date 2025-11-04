@@ -2,7 +2,7 @@ import Cocoa
 
 // Create and run the application
 let app = NSApplication.shared
-let delegate = AppDelegateSimple()  // Use the simpler version for now
+let delegate = AppDelegate()  // Use clipboard-only version
 app.delegate = delegate
 
 // Run the app
