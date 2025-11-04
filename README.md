@@ -1,9 +1,11 @@
 # SnippingEdit for macOS
 
-A screenshot and annotation tool for macOS with instant selection memory and drawing capabilities.
+A screenshot and annotation tool for macOS with instant selection memory and drawing capabilities. Inspired by Windows Snipping Tool for ease of editing clipboard images during AI work.
 
 ![macOS](https://img.shields.io/badge/macOS-14.0+-blue.svg)
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
+
+> **Note:** This is an AI-assisted project. The creator has no prior experience in Swift.
 
 ## Requirements
 
@@ -17,17 +19,21 @@ A screenshot and annotation tool for macOS with instant selection memory and dra
 Build and run for development/testing:
 
 ```bash
+# Quick build and run with icon support
+./run.sh
+```
+
+Or manually:
+
+```bash
 # Build debug version
 swift build
 
-# Run the debug executable
+# Run as app bundle (recommended - shows proper icon)
+open build/SnippingEdit.app
+
+# Or run executable directly (no icon displayed)
 ./.build/debug/SnippingEdit
-```
-
-Or use the convenience script:
-
-```bash
-./run.sh
 ```
 
 ### Release Build
@@ -48,12 +54,12 @@ The release build creates:
 
 ## Features
 
-- **Instant selection** - Remembers your last selection area
-- **8 resize handles** - Corners and edges for precise adjustments
-- **Real-time dimensions** - Shows exact pixel size while resizing
-- **Annotation tools** - 8-color palette for drawing
+- **Clipboard monitoring** - Automatically detects clipboard image updates and captures them for editing
+- **Animated dock icon** - Provides visual feedback with a 2-second pulsing animation when clipboard images are detected
+- **Annotation tools** - 8-color palette for drawing on captured images
+- **Easy clipboard saving** - One-click save edited images back to clipboard for seamless AI workflow integration
 - **Keyboard shortcuts** - Enter to confirm, Escape to cancel, Delete to undo
-- **Clipboard integration** - One-click copy with annotations
+- **Screenshot capture** - Quickly capture and edit any part of your screen
 
 ## Troubleshooting
 

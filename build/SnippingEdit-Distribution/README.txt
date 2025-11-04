@@ -31,13 +31,11 @@ Alternative Fix:
 
 FEATURES
 --------
-• Instant selection with memory
-• 8 resize handles (corners + edges)
-• Real-time dimension display
-• Capture and Cancel buttons
-• 8-color annotation palette
+• Automatic clipboard monitoring
+• Image editing and annotation
+• 8-color drawing palette
 • One-click clipboard copy
-• Keyboard shortcuts
+• Keyboard shortcuts (Delete to undo, Cmd+R to clear)
 
 REQUIREMENTS
 ------------
