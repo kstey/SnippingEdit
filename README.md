@@ -1,6 +1,6 @@
 # SnippingEdit for macOS
 
-A screenshot and annotation tool for macOS with instant selection memory and drawing capabilities. Inspired by Windows Snipping Tool for ease of editing clipboard images during AI work.
+A screenshot and annotation tool for macOS with instant selection memory and drawing capabilities. Inspired by Windows Snipping Tool for ease of editing clipboard images during AI-assisted work.
 
 ![macOS](https://img.shields.io/badge/macOS-14.0+-blue.svg)
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
