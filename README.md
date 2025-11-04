@@ -11,6 +11,12 @@ A screenshot and annotation tool for macOS with instant selection memory and dra
 
 *The SnippingEdit icon as it appears in your macOS dock*
 
+## Edit View
+
+![Edit View Sample](images/editView.png)
+
+*Edit view displaying an image detected from clipboard, ready for annotation*
+
 > **Note:** This is an AI-assisted project. The creator has no prior experience in Swift.
 
 ## Requirements
@@ -66,6 +72,23 @@ The release build creates:
 - **Easy clipboard saving** - One-click save edited images back to clipboard for seamless AI workflow integration
 - **Keyboard shortcuts** - Enter to confirm, Escape to cancel, Delete to undo
 - **Screenshot capture** - Quickly capture and edit any part of your screen
+
+## Usage
+
+### Configuring macOS Screenshot Tool
+
+To use SnippingEdit with macOS's native screenshot tool, configure it to save screenshots to the clipboard:
+
+1. **Press `⌘ + Shift + 5`** to open the Screenshot toolbar
+2. Click on **Options** in the toolbar
+3. Under "Save to", select **Clipboard**
+4. Close the Screenshot toolbar
+
+Alternatively, you can use:
+- **`⌘ + Shift + 4`** - Capture a selection directly to clipboard (after configuring as above)
+- **`⌘ + Control + Shift + 4`** - Always captures to clipboard (no configuration needed)
+
+Once configured, any screenshot you take will be automatically detected by SnippingEdit and opened in the edit view for annotation.
 
 ## Troubleshooting
 
