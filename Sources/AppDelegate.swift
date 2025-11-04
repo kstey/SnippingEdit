@@ -247,26 +247,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let sun = NSBezierPath(ovalIn: CGRect(x: sunX, y: sunY, width: sunSize, height: sunSize))
         sun.fill()
         
-        // Target/crosshair overlay (centered on image area)
-        let targetSize = min(imageWidth, imageHeight) * 0.5
-        let targetX = imageX + (imageWidth - targetSize) / 2
-        let targetY = imageY + (imageHeight - targetSize) / 2
+        // Target/crosshair overlay (4x bigger, positioned at top of icon)
+        let targetSize = min(imageWidth, imageHeight) * 2.0  // 4x bigger (was 1.0, now 2.0 = 2x increase)
+        let targetX = imageX + (imageWidth - targetSize) / 2  // Centered horizontally
+        let targetY = clipboardY + clipboardHeight - targetSize * 0.5  // At the top of the icon
         
         // Outer circle (red/orange with pulse)
         let targetBrightness = 1.0 + pulseIntensity * 0.2
-        NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.8).setStroke()
-        let outerCircle = NSBezierPath(ovalIn: CGRect(x: targetX, y: targetY, 
+        NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.9).setStroke()
+        let outerCircle = NSBezierPath(ovalIn: CGRect(x: targetX, y: targetY,
                                                         width: targetSize, height: targetSize))
-        outerCircle.lineWidth = size.width * 0.012
+        outerCircle.lineWidth = size.width * 0.025  // Thicker: was 0.012, now 0.025
         outerCircle.stroke()
-        
+
         // Inner circle
         let innerSize = targetSize * 0.6
         let innerX = targetX + (targetSize - innerSize) / 2
         let innerY = targetY + (targetSize - innerSize) / 2
-        let innerCircle = NSBezierPath(ovalIn: CGRect(x: innerX, y: innerY, 
+        let innerCircle = NSBezierPath(ovalIn: CGRect(x: innerX, y: innerY,
                                                         width: innerSize, height: innerSize))
-        innerCircle.lineWidth = size.width * 0.008
+        innerCircle.lineWidth = size.width * 0.020  // Thicker: was 0.008, now 0.020
         innerCircle.stroke()
         
         // Crosshair lines
@@ -278,19 +278,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hLine = NSBezierPath()
         hLine.move(to: CGPoint(x: centerX - crosshairLength, y: centerY))
         hLine.line(to: CGPoint(x: centerX + crosshairLength, y: centerY))
-        hLine.lineWidth = size.width * 0.01
+        hLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
         hLine.stroke()
-        
+
         // Vertical line
         let vLine = NSBezierPath()
         vLine.move(to: CGPoint(x: centerX, y: centerY - crosshairLength))
         vLine.line(to: CGPoint(x: centerX, y: centerY + crosshairLength))
-        vLine.lineWidth = size.width * 0.01
+        vLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
         vLine.stroke()
-        
+
         // Center dot
         NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.9).setFill()
-        let dotSize = size.width * 0.015
+        let dotSize = size.width * 0.030  // Bigger: was 0.015, now 0.030
         let dot = NSBezierPath(ovalIn: CGRect(x: centerX - dotSize/2, y: centerY - dotSize/2,
                                                width: dotSize, height: dotSize))
         dot.fill()

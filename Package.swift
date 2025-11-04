@@ -17,7 +17,10 @@ let package = Package(
             name: "SnippingEdit",
             dependencies: [],
             path: "Sources",
-            exclude: ["Info.plist"]
+            exclude: ["Info.plist"],
+            resources: [
+                .copy("AppIcon.icns")
+            ]
         )
     ]
 )

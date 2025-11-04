@@ -9,6 +9,20 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Default to release mode
+BUILD_MODE="${1:-release}"
+
+# Validate build mode
+if [[ "$BUILD_MODE" != "debug" && "$BUILD_MODE" != "release" ]]; then
+    echo -e "${RED}❌ Invalid build mode: $BUILD_MODE${NC}"
+    echo ""
+    echo "Usage: $0 [debug|release]"
+    echo "  debug   - Build with debug symbols (faster build, larger binary)"
+    echo "  release - Build optimized for production (default)"
+    echo ""
+    exit 1
+fi
+
 # Configuration
 APP_NAME="SnippingEdit.app"
 APP_DIR="build/$APP_NAME"
@@ -19,18 +33,23 @@ DIST_DIR="build/SnippingEdit-Distribution"
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}  Building SnippingEdit for macOS${NC}"
+echo -e "${BLUE}  Mode: ${YELLOW}${BUILD_MODE}${BLUE}${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
 # Step 1: Build the Swift package
-echo -e "${YELLOW}[1/7]${NC} Building Swift package..."
-swift build
+echo -e "${YELLOW}[1/7]${NC} Building Swift package in ${BUILD_MODE} mode..."
+if [ "$BUILD_MODE" == "release" ]; then
+    swift build -c release
+else
+    swift build
+fi
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Build failed!${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓${NC} Swift build complete"
+echo -e "${GREEN}✓${NC} Swift build complete (${BUILD_MODE})"
 echo ""
 
 # Step 2: Create .app bundle structure
@@ -43,8 +62,8 @@ echo ""
 
 # Step 3: Copy the executable
 echo -e "${YELLOW}[3/7]${NC} Copying executable..."
-cp .build/debug/SnippingEdit "$MACOS_DIR/"
-echo -e "${GREEN}✓${NC} Executable copied"
+cp ".build/${BUILD_MODE}/SnippingEdit" "$MACOS_DIR/"
+echo -e "${GREEN}✓${NC} Executable copied (${BUILD_MODE})"
 echo ""
 
 # Step 4: Copy Info.plist
@@ -55,11 +74,32 @@ echo ""
 
 # Step 4.5: Copy app icon
 echo -e "${YELLOW}[4.5/7]${NC} Copying app icon..."
-if [ -f "AppIcon.icns" ]; then
+
+# Check multiple possible locations for the icon
+ICON_FOUND=false
+
+# Try SPM resource bundle location first (most likely)
+SPM_BUNDLE="arm64-apple-macosx/${BUILD_MODE}/SnippingEdit_SnippingEdit.bundle"
+if [ -f "$SPM_BUNDLE/AppIcon.icns" ]; then
+    cp "$SPM_BUNDLE/AppIcon.icns" "$RESOURCES_DIR/"
+    echo -e "${GREEN}✓${NC} App icon copied from SPM bundle"
+    ICON_FOUND=true
+# Try root directory
+elif [ -f "AppIcon.icns" ]; then
     cp AppIcon.icns "$RESOURCES_DIR/"
-    echo -e "${GREEN}✓${NC} App icon copied"
-else
-    echo -e "${YELLOW}⚠${NC}  AppIcon.icns not found, skipping (app will use default icon)"
+    echo -e "${GREEN}✓${NC} App icon copied from root"
+    ICON_FOUND=true
+# Try Sources directory
+elif [ -f "Sources/AppIcon.icns" ]; then
+    cp Sources/AppIcon.icns "$RESOURCES_DIR/"
+    echo -e "${GREEN}✓${NC} App icon copied from Sources"
+    ICON_FOUND=true
+fi
+
+if [ "$ICON_FOUND" = false ]; then
+    echo -e "${YELLOW}⚠${NC}  AppIcon.icns not found in any location"
+    echo "     The app will display with a generic terminal icon."
+    echo "     Searched: $SPM_BUNDLE, root, and Sources/"
 fi
 echo ""
 
@@ -209,7 +249,7 @@ echo ""
 
 # Final summary
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Build Complete!${NC}"
+echo -e "${GREEN}✅ Build Complete! (${BUILD_MODE} mode)${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${GREEN}📦 App Location:${NC}"
@@ -232,4 +272,12 @@ echo "   • Recipients may see \"damaged\" error when downloaded"
 echo "   • FIX_IF_DAMAGED.sh script included in distribution"
 echo "   • See GATEKEEPER_FIX.md for detailed solutions"
 echo ""
-
+echo -e "${BLUE}Build Info:${NC}"
+echo "   Build Mode: ${BUILD_MODE}"
+echo "   Binary: .build/${BUILD_MODE}/SnippingEdit"
+if [ "$BUILD_MODE" == "release" ]; then
+    echo "   Optimizations: Enabled"
+else
+    echo "   Debug Symbols: Included"
+fi
+echo ""
