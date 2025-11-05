@@ -189,6 +189,9 @@ class EditWindow: NSWindow {
     override func close() {
         print("Edit window closing")
         
+        // Store delegate reference before clearing
+        let delegate = editDelegate
+        
         // Remove observers first
         NotificationCenter.default.removeObserver(self)
         
@@ -196,11 +199,15 @@ class EditWindow: NSWindow {
         floatingToolbar?.close()
         floatingToolbar = nil
         
-        // Notify delegate
-        editDelegate?.editWindowDidClose(self)
+        // Clear delegates to break retain cycles
+        editDelegate = nil
+        self.delegate = nil
         
         // Call super
         super.close()
+        
+        // Notify delegate after everything is cleaned up
+        delegate?.editWindowDidClose(self)
     }
 }
 

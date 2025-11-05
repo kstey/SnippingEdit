@@ -24,6 +24,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Store original dock icon
         originalDockIcon = NSApp.applicationIconImage
+        
+        // Run pulse animation once at launch
+        startIconAnimation()
 
         // Get initial clipboard state
         lastChangeCount = NSPasteboard.general.changeCount
@@ -149,7 +152,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let progress = elapsed / animationDuration
         let pulseIntensity = sin(progress * .pi * 4) * (1.0 - progress)  // Multiple pulses that fade
         
-        // Create animated icon
+        // Create animated icon with pulsing thickness
+        // Thickness pulses between 0.2 (thin) and 0.4 (thick)
         let animatedIcon = createAnimatedIcon(pulseIntensity: CGFloat(max(0, pulseIntensity)))
         NSApp.applicationIconImage = animatedIcon
     }
@@ -159,12 +163,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         iconAnimationTimer = nil
         animationStartTime = nil
         
-        // Restore original icon
+        // End with the original icon (which now has thick target from .icns)
         if let original = originalDockIcon {
             NSApp.applicationIconImage = original
         }
         
-        print("🎬 Stopped dock icon animation")
+        print("🎬 Stopped dock icon animation - back to original icon")
     }
     
     private func createAnimatedIcon(pulseIntensity: CGFloat) -> NSImage {
@@ -252,12 +256,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let targetX = imageX + (imageWidth - targetSize) / 2  // Centered horizontally
         let targetY = clipboardY + clipboardHeight - targetSize * 0.5  // At the top of the icon
         
+        // Pulse thickness between 0.05 and 0.1
+        let baseThickness: CGFloat = 0.1
+        let minThickness: CGFloat = 0.05
+        let thicknessVariation = (baseThickness - minThickness) * (1.0 - pulseIntensity)
+        let currentThickness = baseThickness - thicknessVariation
+        
         // Outer circle (red/orange with pulse)
         let targetBrightness = 1.0 + pulseIntensity * 0.2
         NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.9).setStroke()
         let outerCircle = NSBezierPath(ovalIn: CGRect(x: targetX, y: targetY,
                                                         width: targetSize, height: targetSize))
-        outerCircle.lineWidth = size.width * 0.025  // Thicker: was 0.012, now 0.025
+        outerCircle.lineWidth = size.width * currentThickness
         outerCircle.stroke()
 
         // Inner circle
@@ -266,7 +276,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let innerY = targetY + (targetSize - innerSize) / 2
         let innerCircle = NSBezierPath(ovalIn: CGRect(x: innerX, y: innerY,
                                                         width: innerSize, height: innerSize))
-        innerCircle.lineWidth = size.width * 0.020  // Thicker: was 0.008, now 0.020
+        innerCircle.lineWidth = size.width * currentThickness
         innerCircle.stroke()
         
         // Crosshair lines
@@ -278,19 +288,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hLine = NSBezierPath()
         hLine.move(to: CGPoint(x: centerX - crosshairLength, y: centerY))
         hLine.line(to: CGPoint(x: centerX + crosshairLength, y: centerY))
-        hLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
+        hLine.lineWidth = size.width * currentThickness
         hLine.stroke()
 
         // Vertical line
         let vLine = NSBezierPath()
         vLine.move(to: CGPoint(x: centerX, y: centerY - crosshairLength))
         vLine.line(to: CGPoint(x: centerX, y: centerY + crosshairLength))
-        vLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
+        vLine.lineWidth = size.width * currentThickness
         vLine.stroke()
 
         // Center dot
         NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.9).setFill()
-        let dotSize = size.width * 0.030  // Bigger: was 0.015, now 0.030
+        let dotSize = size.width * currentThickness
         let dot = NSBezierPath(ovalIn: CGRect(x: centerX - dotSize/2, y: centerY - dotSize/2,
                                                width: dotSize, height: dotSize))
         dot.fill()

@@ -86,7 +86,7 @@ func createClipboardIcon(size: CGSize) -> NSImage {
     NSColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 0.9).setStroke()
     let outerCircle = NSBezierPath(ovalIn: CGRect(x: targetX, y: targetY,
                                                     width: targetSize, height: targetSize))
-    outerCircle.lineWidth = size.width * 0.025  // Thicker: was 0.012, now 0.025
+    outerCircle.lineWidth = targetSize * 0.1  // Thick base
     outerCircle.stroke()
 
     // Inner circle
@@ -95,7 +95,7 @@ func createClipboardIcon(size: CGSize) -> NSImage {
     let innerY = targetY + (targetSize - innerSize) / 2
     let innerCircle = NSBezierPath(ovalIn: CGRect(x: innerX, y: innerY,
                                                     width: innerSize, height: innerSize))
-    innerCircle.lineWidth = size.width * 0.020  // Thicker: was 0.008, now 0.020
+    innerCircle.lineWidth = targetSize * 0.1  // Thick base
     innerCircle.stroke()
     
     // Crosshair lines
@@ -107,19 +107,19 @@ func createClipboardIcon(size: CGSize) -> NSImage {
     let hLine = NSBezierPath()
     hLine.move(to: CGPoint(x: centerX - crosshairLength, y: centerY))
     hLine.line(to: CGPoint(x: centerX + crosshairLength, y: centerY))
-    hLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
+    hLine.lineWidth = targetSize * 0.1  // Thick base
     hLine.stroke()
 
     // Vertical line
     let vLine = NSBezierPath()
     vLine.move(to: CGPoint(x: centerX, y: centerY - crosshairLength))
     vLine.line(to: CGPoint(x: centerX, y: centerY + crosshairLength))
-    vLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
+    vLine.lineWidth = targetSize * 0.1  // Thick base
     vLine.stroke()
 
     // Center dot
     NSColor(red: 1.0, green: 0.3, blue: 0.2, alpha: 0.9).setFill()
-    let dotSize = size.width * 0.030  // Bigger: was 0.015, now 0.030
+    let dotSize = targetSize * 0.1  // Thick base
     let dot = NSBezierPath(ovalIn: CGRect(x: centerX - dotSize/2, y: centerY - dotSize/2,
                                            width: dotSize, height: dotSize))
     dot.fill()
@@ -216,7 +216,7 @@ func createAnimatedClipboardIcon(size: CGSize, pulseIntensity: CGFloat) -> NSIma
     NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.9).setStroke()
     let outerCircle = NSBezierPath(ovalIn: CGRect(x: targetX, y: targetY,
                                                     width: targetSize, height: targetSize))
-    outerCircle.lineWidth = size.width * 0.025  // Thicker: was 0.012, now 0.025
+    outerCircle.lineWidth = targetSize * 0.3  // Much thicker
     outerCircle.stroke()
 
     // Inner circle
@@ -225,7 +225,7 @@ func createAnimatedClipboardIcon(size: CGSize, pulseIntensity: CGFloat) -> NSIma
     let innerY = targetY + (targetSize - innerSize) / 2
     let innerCircle = NSBezierPath(ovalIn: CGRect(x: innerX, y: innerY,
                                                     width: innerSize, height: innerSize))
-    innerCircle.lineWidth = size.width * 0.020  // Thicker: was 0.008, now 0.020
+    innerCircle.lineWidth = targetSize * 0.3  // Much thicker
     innerCircle.stroke()
     
     // Crosshair lines
@@ -237,19 +237,19 @@ func createAnimatedClipboardIcon(size: CGSize, pulseIntensity: CGFloat) -> NSIma
     let hLine = NSBezierPath()
     hLine.move(to: CGPoint(x: centerX - crosshairLength, y: centerY))
     hLine.line(to: CGPoint(x: centerX + crosshairLength, y: centerY))
-    hLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
+    hLine.lineWidth = targetSize * 0.3  // Much thicker
     hLine.stroke()
 
     // Vertical line
     let vLine = NSBezierPath()
     vLine.move(to: CGPoint(x: centerX, y: centerY - crosshairLength))
     vLine.line(to: CGPoint(x: centerX, y: centerY + crosshairLength))
-    vLine.lineWidth = size.width * 0.020  // Thicker: was 0.01, now 0.020
+    vLine.lineWidth = targetSize * 0.3  // Much thicker
     vLine.stroke()
 
     // Center dot
     NSColor(red: 1.0 * targetBrightness, green: 0.3, blue: 0.2, alpha: 0.9).setFill()
-    let dotSize = size.width * 0.030  // Bigger: was 0.015, now 0.030
+    let dotSize = targetSize * 0.3  // Much thicker
     let dot = NSBezierPath(ovalIn: CGRect(x: centerX - dotSize/2, y: centerY - dotSize/2,
                                            width: dotSize, height: dotSize))
     dot.fill()
