@@ -187,8 +187,19 @@ class EditWindow: NSWindow {
     }
     
     override func close() {
-        floatingToolbar.close()
+        print("Edit window closing")
+        
+        // Remove observers first
+        NotificationCenter.default.removeObserver(self)
+        
+        // Close and release toolbar
+        floatingToolbar?.close()
+        floatingToolbar = nil
+        
+        // Notify delegate
         editDelegate?.editWindowDidClose(self)
+        
+        // Call super
         super.close()
     }
 }

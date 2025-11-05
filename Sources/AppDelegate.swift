@@ -347,6 +347,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 extension AppDelegate: EditWindowDelegate {
     func editWindowDidClose(_ window: EditWindow) {
         print("Edit window closed")
+        // Clear the window reference to allow proper deallocation
+        if editWindow === window {
+            editWindow = nil
+        }
     }
 
     func editWindowDidShow(_ window: EditWindow) {
