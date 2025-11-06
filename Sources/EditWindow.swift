@@ -16,8 +16,9 @@ class EditWindow: NSWindow {
     private var drawingView: DrawingView
     private var floatingToolbar: FloatingToolbar!
     
+    // Reduced to 6 common colors (removed purple and white)
     private let colors: [NSColor] = [
-        .red, .blue, .green, .yellow, .orange, .purple, .black, .white
+        .red, .blue, .green, .yellow, .orange, .black
     ]
     
     init(image: NSImage) {
@@ -70,6 +71,20 @@ class EditWindow: NSWindow {
         // Create floating toolbar positioned below this window
         floatingToolbar = FloatingToolbar(parentWindow: self, colors: colors)
         floatingToolbar.toolbarDelegate = self
+
+        // Set up undo/redo callback
+        drawingView.onUndoRedoStateChanged = { [weak self] canUndo, canRedo in
+            self?.floatingToolbar.updateUndoRedoButtons(canUndo: canUndo, canRedo: canRedo)
+        }
+        
+        // Set up callback for when user starts editing
+        drawingView.onEditMade = { [weak self] hasEdits in
+            self?.floatingToolbar.updateCopyButton(enabled: hasEdits)
+        }
+
+        // Initialize undo/redo button states and disable copy button
+        floatingToolbar.updateUndoRedoButtons(canUndo: false, canRedo: false)
+        floatingToolbar.updateCopyButton(enabled: false)
 
         // Set self as delegate to receive window events
         self.delegate = self
@@ -130,6 +145,9 @@ class EditWindow: NSWindow {
         // Clear any existing drawings
         drawingView.clearDrawing()
         
+        // Disable copy button until user makes new edits
+        floatingToolbar.updateCopyButton(enabled: false)
+        
         // Calculate new window size based on image
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
         let maxWidth = screenFrame.width * 0.8
@@ -165,8 +183,11 @@ class EditWindow: NSWindow {
         // Animate window resize
         self.setFrame(newFrame, display: true, animate: true)
         
-        // Update drawing view frame to fill the window
-        drawingView.frame = NSRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
+        // Update drawing view frame to fill the content view (not raw dimensions)
+        // This ensures it accounts for the title bar and window chrome
+        if let contentView = self.contentView {
+            drawingView.frame = contentView.bounds
+        }
         
         // Update the image in the drawing view
         drawingView.croppedImage = image
@@ -180,32 +201,45 @@ class EditWindow: NSWindow {
     
     private func setupDrawingView() {
         if let contentView = self.contentView {
+            // Set the drawing view to fill the entire content view
             drawingView.frame = contentView.bounds
             drawingView.autoresizingMask = [.width, .height]
+            
+            // Ensure the image is drawn with proper aspect ratio within the view
+            drawingView.wantsLayer = true
+            drawingView.layer?.contentsGravity = .resizeAspect
+            
             contentView.addSubview(drawingView)
         }
     }
     
     override func close() {
         print("Edit window closing")
-        
+
         // Store delegate reference before clearing
         let delegate = editDelegate
-        
+
         // Remove observers first
         NotificationCenter.default.removeObserver(self)
-        
+
+        // Disable animations to prevent crash during deallocation
+        self.animationBehavior = .none
+
         // Close and release toolbar
-        floatingToolbar?.close()
+        if let toolbar = floatingToolbar {
+            toolbar.animationBehavior = .none
+            toolbar.orderOut(nil)
+            toolbar.close()
+        }
         floatingToolbar = nil
-        
+
         // Clear delegates to break retain cycles
         editDelegate = nil
         self.delegate = nil
-        
+
         // Call super
         super.close()
-        
+
         // Notify delegate after everything is cleaned up
         delegate?.editWindowDidClose(self)
     }
@@ -217,12 +251,20 @@ extension EditWindow: FloatingToolbarDelegate {
         drawingView.currentColor = color
         print("Color selected: \(color)")
     }
-    
+
     func toolbarDidRequestClear() {
         drawingView.clearDrawing()
         print("Drawing cleared")
     }
-    
+
+    func toolbarDidRequestUndo() {
+        drawingView.undo()
+    }
+
+    func toolbarDidRequestRedo() {
+        drawingView.redo()
+    }
+
     func toolbarDidRequestCopyToClipboard() {
         guard let finalImage = drawingView.getFinalImage() else {
             print("Failed to get final image")
@@ -240,7 +282,7 @@ extension EditWindow: FloatingToolbarDelegate {
         pasteboard.writeObjects([finalImage])
 
         print("Image copied to clipboard")
-        
+
         floatingToolbar.showCopiedFeedback()
     }
 }
@@ -288,6 +330,8 @@ extension EditWindow: NSWindowDelegate {
 protocol FloatingToolbarDelegate: AnyObject {
     func toolbarDidSelectColor(_ color: NSColor)
     func toolbarDidRequestClear()
+    func toolbarDidRequestUndo()
+    func toolbarDidRequestRedo()
     func toolbarDidRequestCopyToClipboard()
 }
 
@@ -296,20 +340,22 @@ class FloatingToolbar: NSPanel {
     private weak var editWindow: NSWindow?
     private var colorButtons: [NSButton] = []
     private var clipboardButton: NSButton!
-    
+    private var undoButton: NSButton!
+    private var redoButton: NSButton!
+
     init(parentWindow: NSWindow, colors: [NSColor]) {
         self.editWindow = parentWindow
-        
-        // Create floating panel
+
+        // Create floating panel (wider to accommodate undo/redo buttons)
         let toolbarWidth: CGFloat = 550
         let toolbarHeight: CGFloat = 60
         let toolbarFrame = NSRect(x: 0, y: 0, width: toolbarWidth, height: toolbarHeight)
-        
+
         super.init(contentRect: toolbarFrame,
                    styleMask: [.nonactivatingPanel, .utilityWindow],
                    backing: .buffered,
                    defer: false)
-        
+
         // Configure panel to float
         self.level = .floating
         self.isFloatingPanel = true
@@ -319,10 +365,16 @@ class FloatingToolbar: NSPanel {
         self.isOpaque = false
         self.hasShadow = true
         self.styleMask.insert(.nonactivatingPanel)
-        
+
         setupToolbarContent(colors: colors)
         updatePosition()
         self.orderFront(nil)
+    }
+
+    deinit {
+        print("FloatingToolbar deinit")
+        toolbarDelegate = nil
+        editWindow = nil
     }
     
     private func setupToolbarContent(colors: [NSColor]) {
@@ -363,23 +415,47 @@ class FloatingToolbar: NSPanel {
         }
         
         xOffset += 10
-        
+
+        // Undo button
+        undoButton = NSButton(frame: NSRect(x: xOffset, y: 15, width: 60, height: 30))
+        undoButton.title = "Undo"
+        undoButton.bezelStyle = .rounded
+        undoButton.target = self
+        undoButton.action = #selector(undoAction)
+        undoButton.isEnabled = false
+        contentView.addSubview(undoButton)
+
+        xOffset += 70
+
+        // Redo button
+        redoButton = NSButton(frame: NSRect(x: xOffset, y: 15, width: 60, height: 30))
+        redoButton.title = "Redo"
+        redoButton.bezelStyle = .rounded
+        redoButton.target = self
+        redoButton.action = #selector(redoAction)
+        redoButton.isEnabled = false
+        contentView.addSubview(redoButton)
+
+        xOffset += 70
+
         // Clear button
-        let clearButton = NSButton(frame: NSRect(x: xOffset, y: 15, width: 80, height: 30))
+        let clearButton = NSButton(frame: NSRect(x: xOffset, y: 15, width: 60, height: 30))
         clearButton.title = "Clear"
         clearButton.bezelStyle = .rounded
         clearButton.target = self
         clearButton.action = #selector(clearDrawing)
         contentView.addSubview(clearButton)
-        
-        xOffset += 90
-        
-        // Clipboard button
-        clipboardButton = NSButton(frame: NSRect(x: xOffset, y: 15, width: 100, height: 30))
-        clipboardButton.title = "Clipboard"
+
+        xOffset += 70
+
+        // Clipboard button - disabled by default until user makes edits
+        clipboardButton = NSButton(frame: NSRect(x: xOffset, y: 15, width: 80, height: 30))
+        clipboardButton.title = "Copy"
         clipboardButton.bezelStyle = .rounded
         clipboardButton.target = self
         clipboardButton.action = #selector(copyToClipboard)
+        clipboardButton.isEnabled = false  // Disabled by default
+        
         contentView.addSubview(clipboardButton)
     }
     
@@ -410,20 +486,40 @@ class FloatingToolbar: NSPanel {
         toolbarDelegate?.toolbarDidSelectColor(sender.layer?.backgroundColor?.nsColor ?? .red)
     }
     
+    @objc private func undoAction() {
+        toolbarDelegate?.toolbarDidRequestUndo()
+    }
+
+    @objc private func redoAction() {
+        toolbarDelegate?.toolbarDidRequestRedo()
+    }
+
     @objc private func clearDrawing() {
         toolbarDelegate?.toolbarDidRequestClear()
     }
-    
+
     @objc private func copyToClipboard() {
         toolbarDelegate?.toolbarDidRequestCopyToClipboard()
     }
+
+    func updateUndoRedoButtons(canUndo: Bool, canRedo: Bool) {
+        undoButton.isEnabled = canUndo
+        redoButton.isEnabled = canRedo
+    }
     
+    func updateCopyButton(enabled: Bool) {
+        clipboardButton.isEnabled = enabled
+    }
+
     func showCopiedFeedback() {
         let originalTitle = clipboardButton.title
-        clipboardButton.title = "✓ Copied!"
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.clipboardButton.title = originalTitle
+        clipboardButton.title = "✅ Copied!"
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self = self else { return }
+            self.clipboardButton.title = originalTitle
+            // Disable the copy button after copying
+            self.clipboardButton.isEnabled = false
         }
     }
 }
