@@ -5,6 +5,24 @@ A screenshot and annotation tool for macOS with instant selection memory and dra
 ![macOS](https://img.shields.io/badge/macOS-14.0+-blue.svg)
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
 
+## Download
+
+- Direct link to the latest packaged app (zip):
+	- [Download SnippingEdit-Distribution.zip](build/SnippingEdit-Distribution.zip?raw=1)
+
+How to install/run after download:
+
+1) Unzip the file and open `SnippingEdit.app`.
+2) If macOS warns the app is “damaged” or “cannot be opened”, run the included script in the unzipped folder:
+
+```bash
+./FIX_IF_DAMAGED.sh
+```
+
+More details are in `build/SnippingEdit-Distribution/GATEKEEPER_FIX.md`.
+
+Note: The app in this repository isn’t code-signed. The script removes quarantine and sets the proper permissions for local usage.
+
 ## App Icon
 
 ![SnippingEdit Icon in Dock](images/SnippingEditIcon.png)
