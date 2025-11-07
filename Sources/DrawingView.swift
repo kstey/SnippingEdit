@@ -252,7 +252,7 @@ class DrawingView: NSView {
         guard let backgroundImage = croppedImage else { return nil }
 
         let finalImage = NSImage(size: backgroundImage.size)
-        finalImage.lockFocus()
+        finalImage.lockFocusFlipped(true)  // Use flipped coordinates to match DrawingView
 
         // Draw background
         backgroundImage.draw(in: NSRect(origin: .zero, size: backgroundImage.size))
