@@ -13,9 +13,16 @@ class DrawingView: NSView {
 
     // Callback to notify when undo/redo state changes
     var onUndoRedoStateChanged: ((Bool, Bool) -> Void)?
-    
+
     // Callback to notify when user makes an edit
     var onEditMade: ((Bool) -> Void)?
+
+    // Auto-clipboard timer
+    private var autoClipboardTimer: Timer?
+    var onAutoClipboard: (() -> Void)?
+
+    // Track previous bounds to detect resize
+    private var previousBounds: NSRect = .zero
 
     // Use flipped coordinates (top-left origin) for easier image alignment
     override var isFlipped: Bool {
@@ -26,11 +33,24 @@ class DrawingView: NSView {
         var points: [NSPoint]
         var color: NSColor
         var lineWidth: CGFloat
+
+        // Scale all points by the given factors
+        func scaled(by scaleX: CGFloat, _ scaleY: CGFloat) -> DrawingPath {
+            let scaledPoints = points.map { NSPoint(x: $0.x * scaleX, y: $0.y * scaleY) }
+            return DrawingPath(points: scaledPoints, color: color, lineWidth: lineWidth)
+        }
     }
     
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        
+
+        // Detect if bounds changed (window was resized)
+        if previousBounds != .zero && previousBounds != self.bounds {
+            print("View bounds changed from \(previousBounds) to \(self.bounds)")
+            rescaleAnnotations(from: previousBounds, to: self.bounds)
+        }
+        previousBounds = self.bounds
+
         // Draw the cropped image as background
         if let image = croppedImage {
             // Draw image with proper aspect ratio, fitting within bounds
@@ -41,9 +61,29 @@ class DrawingView: NSView {
                       respectFlipped: true,
                       hints: [.interpolation: NSNumber(value: NSImageInterpolation.high.rawValue)])
         }
-        
+
         // Draw all paths
         drawAllPaths()
+    }
+
+    private func rescaleAnnotations(from oldBounds: NSRect, to newBounds: NSRect) {
+        let scaleX = newBounds.width / oldBounds.width
+        let scaleY = newBounds.height / oldBounds.height
+
+        print("Rescaling annotations by \(scaleX)x, \(scaleY)y")
+
+        // Scale all existing paths
+        paths = paths.map { $0.scaled(by: scaleX, scaleY) }
+
+        // Scale undo stack
+        undoStack = undoStack.map { pathArray in
+            pathArray.map { $0.scaled(by: scaleX, scaleY) }
+        }
+
+        // Scale redo stack
+        redoStack = redoStack.map { pathArray in
+            pathArray.map { $0.scaled(by: scaleX, scaleY) }
+        }
     }
     
     private func drawAllPaths() {
@@ -76,23 +116,27 @@ class DrawingView: NSView {
     
     override func mouseDown(with event: NSEvent) {
         let locationInView = self.convert(event.locationInWindow, from: nil)
-        
+
+        // Cancel any pending timer when user starts drawing
+        cancelAutoClipboardTimer()
+        print("Mouse down - cancelled auto-clipboard timer")
+
         currentPath = DrawingPath(
             points: [locationInView],
             color: currentColor,
             lineWidth: 3.0
         )
-        
+
         self.needsDisplay = true
     }
-    
+
     override func mouseDragged(with event: NSEvent) {
         guard var path = currentPath else { return }
-        
+
         let locationInView = self.convert(event.locationInWindow, from: nil)
         path.points.append(locationInView)
         currentPath = path
-        
+
         self.needsDisplay = true
     }
     
@@ -107,13 +151,37 @@ class DrawingView: NSView {
             // Clear redo stack when new action is performed
             redoStack.removeAll()
             updateUndoRedoState()
-            
+
             // Notify that an edit has been made
             onEditMade?(true)
+
+            // Start auto-clipboard timer after mouse is released
+            print("Mouse up - starting 2-second auto-clipboard timer")
+            startAutoClipboardTimer()
         }
 
         currentPath = nil
         self.needsDisplay = true
+    }
+
+    private func startAutoClipboardTimer() {
+        // Cancel any existing timer
+        autoClipboardTimer?.invalidate()
+
+        // Start a new 2-second timer
+        print("⏱️  Starting new 2-second auto-clipboard timer")
+        autoClipboardTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            print("✅ Auto-clipboard timer completed - copying to clipboard now")
+            self?.onAutoClipboard?()
+        }
+    }
+
+    private func cancelAutoClipboardTimer() {
+        if autoClipboardTimer != nil {
+            print("❌ Cancelling auto-clipboard timer")
+            autoClipboardTimer?.invalidate()
+            autoClipboardTimer = nil
+        }
     }
     
     override func keyDown(with event: NSEvent) {
@@ -184,10 +252,13 @@ class DrawingView: NSView {
         currentPath = nil
         redoStack.removeAll()
         updateUndoRedoState()
-        
+
+        // Cancel auto-clipboard timer when clearing
+        cancelAutoClipboardTimer()
+
         // Notify that there are no edits
         onEditMade?(false)
-        
+
         self.needsDisplay = true
     }
 
@@ -223,6 +294,10 @@ class DrawingView: NSView {
         paths = undoStack.removeLast()
         updateUndoRedoState()
         self.needsDisplay = true
+
+        // Start auto-clipboard timer after undo
+        print("Undo completed - starting 2-second auto-clipboard timer")
+        startAutoClipboardTimer()
     }
 
     func redo() {
@@ -238,6 +313,10 @@ class DrawingView: NSView {
         paths = redoStack.removeLast()
         updateUndoRedoState()
         self.needsDisplay = true
+
+        // Start auto-clipboard timer after redo
+        print("Redo completed - starting 2-second auto-clipboard timer")
+        startAutoClipboardTimer()
     }
 
     func canUndo() -> Bool {

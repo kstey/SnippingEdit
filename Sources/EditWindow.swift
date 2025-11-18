@@ -82,6 +82,11 @@ class EditWindow: NSWindow {
             self?.floatingToolbar.updateCopyButton(enabled: hasEdits)
         }
 
+        // Set up auto-clipboard callback
+        drawingView.onAutoClipboard = { [weak self] in
+            self?.autoClipboardAction()
+        }
+
         // Initialize undo/redo button states and disable copy button
         floatingToolbar.updateUndoRedoButtons(canUndo: false, canRedo: false)
         floatingToolbar.updateCopyButton(enabled: false)
@@ -266,6 +271,15 @@ extension EditWindow: FloatingToolbarDelegate {
     }
 
     func toolbarDidRequestCopyToClipboard() {
+        copyToClipboard()
+    }
+
+    private func autoClipboardAction() {
+        print("Auto-clipboard: Copying to clipboard after 2 seconds of inactivity")
+        copyToClipboard()
+    }
+
+    private func copyToClipboard() {
         guard let finalImage = drawingView.getFinalImage() else {
             print("Failed to get final image")
             return
