@@ -289,15 +289,81 @@ extension EditWindow: FloatingToolbarDelegate {
         if let appDelegate = NSApp.delegate as? AppDelegate {
             appDelegate.willWriteToClipboard()
         }
+        
+        // Optimize and convert image for clipboard (PNG format for browser compatibility)
+        guard let optimizedData = optimizeImageForClipboard(finalImage) else {
+            print("Failed to optimize image, falling back to standard copy")
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.writeObjects([finalImage])
+            floatingToolbar.showCopiedFeedback()
+            return
+        }
 
         // Copy to clipboard
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([finalImage])
+        pasteboard.setData(optimizedData, forType: .png)
 
-        print("Image copied to clipboard")
+        print("Image copied to clipboard (PNG format)")
 
         floatingToolbar.showCopiedFeedback()
+    }
+    
+    private func optimizeImageForClipboard(_ image: NSImage) -> Data? {
+        let imageSize = image.size
+
+        // Determine if we need to downscale (for very large images > 4K)
+        let maxDimension: CGFloat = 3840 // 4K width
+        var targetSize = imageSize
+
+        if imageSize.width > maxDimension || imageSize.height > maxDimension {
+            let scale = min(maxDimension / imageSize.width, maxDimension / imageSize.height)
+            targetSize = NSSize(width: imageSize.width * scale, height: imageSize.height * scale)
+            print("Downscaling image from \(imageSize) to \(targetSize) for clipboard")
+        }
+
+        // Create bitmap representation with proper scaling
+        let scaledImage: NSImage
+        if targetSize != imageSize {
+            scaledImage = NSImage(size: targetSize)
+            scaledImage.lockFocus()
+            image.draw(in: NSRect(origin: .zero, size: targetSize),
+                      from: NSRect(origin: .zero, size: imageSize),
+                      operation: .copy,
+                      fraction: 1.0)
+            scaledImage.unlockFocus()
+        } else {
+            scaledImage = image
+        }
+
+        // Convert to bitmap representation
+        guard let tiffData = scaledImage.tiffRepresentation,
+              let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+            print("Failed to create bitmap representation")
+            return nil
+        }
+
+        // Use PNG with compression
+        // compressionFactor: 0.0 (no compression) to 1.0 (maximum compression)
+        // For clipboard, we want good compression without too much quality loss
+        let compressionFactor: Float = 0.7
+
+        let properties: [NSBitmapImageRep.PropertyKey: Any] = [
+            .compressionFactor: compressionFactor,
+            .interlaced: false // Non-interlaced PNGs are smaller
+        ]
+
+        guard let pngData = bitmapRep.representation(using: .png, properties: properties) else {
+            print("Failed to create PNG data")
+            return nil
+        }
+
+        let originalSize = (image.tiffRepresentation?.count ?? 0) / 1024
+        let optimizedSize = pngData.count / 1024
+        print("Image size: \(originalSize)KB → \(optimizedSize)KB (saved \(originalSize - optimizedSize)KB)")
+
+        return pngData
     }
 }
 
